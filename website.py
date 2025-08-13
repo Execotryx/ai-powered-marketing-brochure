@@ -1,5 +1,6 @@
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from requests import get
+from requests import get, RequestException
 
 class Website:
     """
@@ -26,18 +27,20 @@ class Website:
     def website_url(self, value: str) -> None:
         if not value:
             raise ValueError("Website URL must be provided")
+        if not urlparse(value, "http").netloc and not urlparse(value, "https").netloc:
+            raise ValueError("Website URL must be a valid URL")
         self.__website_url = value
         self.__fetch_website_data()
 
     def __fetch_website_data(self) -> None:
         try:
             response = get(self.website_url, timeout=10)
-        except Exception as e:
+        except RequestException as e:
             self.__title = "Error"
             self.__text = str(e)
             return
         
-        if response.status_code == 200:
+        if response.ok:
             soup = BeautifulSoup(response.text, "html.parser")
             self.__title = soup.title.get_text() if soup.title else "No title"
             for irrelevant in soup.find_all(["script", "style", "img", "figure", "video", "audio", "button"]):
