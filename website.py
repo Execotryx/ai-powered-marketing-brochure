@@ -1,4 +1,5 @@
-from urllib.parse import urlparse
+import ipaddress
+from urllib.parse import ParseResult, urlparse
 from bs4 import BeautifulSoup
 from requests import get, RequestException
 
@@ -27,10 +28,44 @@ class Website:
     def website_url(self, value: str) -> None:
         if not value:
             raise ValueError("Website URL must be provided")
-        if not urlparse(value, "http").netloc and not urlparse(value, "https").netloc:
+        parsed_url: ParseResult = urlparse(value)
+        if not parsed_url.netloc and parsed_url.scheme in ("http", "https"):
             raise ValueError("Website URL must be a valid URL")
+
+        if not parsed_url.hostname:
+            raise ValueError("Website URL must contain a valid hostname")
+
+        if self.__is_local_address(parsed_url.hostname):
+            raise ValueError("Website URL must not be a local address")
+
+        if not self.__is_allowed_domain(parsed_url.hostname):
+            raise ValueError("Website URL must be an allowed domain")
+
         self.__website_url = value
         self.__fetch_website_data()
+
+    def __is_local_address(self, hostname: str) -> bool:
+        """
+        Check if the given hostname is a local address.
+        """
+        if hostname in ("localhost", "127.0.0.1", "::1"):
+            return True
+
+        try:
+            ip: ipaddress.IPv4Address | ipaddress.IPv6Address = ipaddress.ip_address(hostname)
+            if ip.is_loopback or ip.is_private or ip.is_link_local:
+                return True
+        except ValueError:
+            return False
+
+        return False
+
+    def __is_allowed_domain(self, hostname: str) -> bool:
+        """
+        Check if the given hostname is an allowed domain.
+        """
+        allowed_domains = [".com", ".org", ".net"]
+        return any(hostname.endswith(domain) for domain in allowed_domains)
 
     def __fetch_website_data(self) -> None:
         try:
