@@ -29,7 +29,7 @@ class Website:
         if not value:
             raise ValueError("Website URL must be provided")
         parsed_url: ParseResult = urlparse(value)
-        if not parsed_url.netloc and parsed_url.scheme in ("http", "https"):
+        if not parsed_url.netloc or parsed_url.scheme not in ("http", "https"):
             raise ValueError("Website URL must be a valid URL")
 
         if not parsed_url.hostname:
