@@ -31,11 +31,10 @@ class Website:
 
     def __fetch_website_data(self) -> None:
         try:
-            response = get(self.website_url)
+            response = get(self.website_url, timeout=10)
         except Exception as e:
-            print(f"Connection error: {e}")
             self.__title = "Error"
-            self.__text = "Error"
+            self.__text = str(e)
             return
         
         if response.status_code == 200:
