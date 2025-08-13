@@ -1,4 +1,4 @@
-import ipaddress
+from ipaddress import ip_address, IPv4Address, IPv6Address
 from urllib.parse import ParseResult, urlparse
 from bs4 import BeautifulSoup
 from requests import get, RequestException
@@ -52,8 +52,8 @@ class Website:
             return True
 
         try:
-            ip: ipaddress.IPv4Address | ipaddress.IPv6Address = ipaddress.ip_address(hostname)
-            if ip.is_loopback or ip.is_private or ip.is_link_local:
+            ip: IPv4Address | IPv6Address = ip_address(hostname)
+            if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_reserved:
                 return True
         except ValueError:
             return False
@@ -86,7 +86,7 @@ class Website:
                 self.__text = soup.body.get_text(separator="\n")
         else:
             self.__title = "Error"
-            self.__text = "Error"
+            self.__text = f"Error: {response.status_code} - {response.reason}"
 
     def __init__(self, website_url: str):
         self.website_url = website_url
