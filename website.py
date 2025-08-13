@@ -30,13 +30,23 @@ class Website:
         self.__fetch_website_data()
 
     def __fetch_website_data(self) -> None:
-        response = get(self.__website_url)
+        try:
+            response = get(self.website_url)
+        except Exception as e:
+            print(f"Connection error: {e}")
+            self.__title = "Error"
+            self.__text = "Error"
+            return
+        
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, "html.parser")
-            self.__title = soup.title.string if soup.title else "No title"
+            self.__title = soup.title.get_text() if soup.title else "No title"
             for irrelevant in soup.find_all(["script", "style", "img", "figure", "video", "audio", "button"]):
                 irrelevant.decompose()
-            self.__text = soup.body.get_text(separator="\n")
+            if soup.body is None:
+                self.__text = "No content"
+            else:
+                self.__text = soup.body.get_text(separator="\n")
         else:
             self.__title = "Error"
             self.__text = "Error"
