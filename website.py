@@ -4,11 +4,17 @@ from bs4 import BeautifulSoup
 from requests import get, RequestException
 
 class Extractor:
+    """
+    Extracts and processes content from HTML response text using BeautifulSoup.
+    """
     __soup: BeautifulSoup
 
     __extracted_title: str = ""
     @property
     def extracted_title(self) -> str:
+        """
+        Returns the extracted title from the HTML content.
+        """
         if not self.__extracted_title:
             self.__extracted_title = self.get_title()
         return self.__extracted_title
@@ -16,21 +22,39 @@ class Extractor:
     __extracted_text: str = ""
     @property
     def extracted_text(self) -> str:
+        """
+        Returns the extracted main text content from the HTML, excluding irrelevant tags.
+        """
         if not self.__extracted_text:
             self.__extracted_text = self.get_text()
         return self.__extracted_text
 
     @property
     def _soup(self) -> BeautifulSoup:
+        """
+        Returns the BeautifulSoup object for the HTML content.
+        """
         return self.__soup
     
     def __init__(self, response_text_content: str) -> None:
+        """
+        Initializes the Extractor with HTML response text.
+
+        Parameters:
+            response_text_content (str): The HTML response text to be processed.
+        """
         self.__soup = BeautifulSoup(response_text_content, "html.parser")
 
     def get_title(self) -> str:
+        """
+        Extracts the title from the HTML content.
+        """
         return self._soup.title.get_text() if self._soup.title is not None and hasattr(self._soup.title, "get_text") else "No title"
 
     def get_text(self) -> str:
+        """
+        Extracts and cleans the main text content from the HTML, removing irrelevant tags.
+        """
         for irrelevant in self._soup.find_all(["script", "style", "img", "figure", "video", "audio", "button", "svg", "canvas"]):
             irrelevant.decompose()
         raw_text: str = self._soup.get_text(separator="\n")
@@ -48,18 +72,33 @@ class Website:
 
     @property
     def title(self) -> str:
+        """
+        Returns the title of the website.
+        """
         return self.__title
 
     @property
     def text(self) -> str:
+        """
+        Returns the main text content of the website.
+        """
         return self.__text
 
     @property
     def website_url(self) -> str:
+        """
+        Returns the URL of the website.
+        """
         return self.__website_url
 
     @website_url.setter
     def website_url(self, value: str) -> None:
+        """
+        Sets the website URL after validating it and fetches website data.
+
+        Parameters:
+            value (str): The website URL to set.
+        """
         if not value:
             raise ValueError("Website URL must be provided")
         parsed_url: ParseResult = urlparse(value)
@@ -81,6 +120,12 @@ class Website:
     def __is_local_address(self, hostname: str) -> bool:
         """
         Check if the given hostname is a local address.
+
+        Parameters:
+            hostname (str): The hostname to check.
+
+        Returns:
+            bool: True if the hostname is a local address, False otherwise.
         """
         if hostname in ("localhost", "127.0.0.1", "::1"):
             return True
@@ -97,11 +142,22 @@ class Website:
     def __is_allowed_domain(self, hostname: str) -> bool:
         """
         Check if the given hostname is an allowed domain.
+
+        Parameters:
+            hostname (str): The hostname to check.
+
+        Returns:
+            bool: True if the hostname is an allowed domain, False otherwise.
         """
         allowed_domains = [".com", ".org", ".net"]
         return any(hostname.endswith(domain) for domain in allowed_domains)
 
     def __fetch_website_data(self) -> None:
+        """
+        Fetches website data and extracts title and text using the Extractor class.
+
+        No parameters.
+        """
         try:
             response = get(self.website_url, timeout=10)
         except RequestException as e:
@@ -110,28 +166,24 @@ class Website:
             return
         
         if response.ok:
-            soup = BeautifulSoup(response.text, "html.parser")
-            self.__title = soup.title.get_text() if soup.title else "No title"
-            if soup.body is None:
-                self.__text = "No content"
-            else:
-                self.__text = self.__extract_text(soup)
+            extractor: Extractor = Extractor(response.text)
+            self.__title = extractor.extracted_title
+            self.__text = extractor.extracted_text
         else:
             self.__title = "Error"
             self.__text = f"Error: {response.status_code} - {response.reason}"
 
-    def __extract_text(self, soup: BeautifulSoup) -> str:
-        """
-        Extract visible text from the HTML soup.
-        """
-        for script in soup.find_all(["script", "style", "img", "figure", "video", "audio", "button"]):
-            script.decompose()
-        if soup.body is None:
-            return "No content"
-        return soup.get_text(separator="\n")
-
     def __init__(self, website_url: str):
+        """
+        Initializes the Website object and fetches its data.
+
+        Parameters:
+            website_url (str): The URL of the website to fetch.
+        """
         self.website_url = website_url
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the Website object.
+        """
         return f"Website(title={self.title}, url={self.website_url})"
