@@ -171,7 +171,23 @@ class Website:
             self.__text = extractor.extracted_text
         else:
             self.__title = "Error"
-            self.__text = f"Error: {response.status_code} - {response.reason}"
+        if response.ok:
+            extractor: Extractor = Extractor(response.text)
+            self.__title = extractor.extracted_title
+            self.__text = extractor.extracted_text
+        else:
+            if response.status_code == 404:
+                self.__title = "Not Found"
+                self.__text = "The requested resource was not found (404)."
+            elif response.status_code == 403:
+                self.__title = "Forbidden"
+                self.__text = "Access to the requested resource is forbidden (403)."
+            elif response.status_code == 500:
+                self.__title = "Server Error"
+                self.__text = "The server encountered an internal error (500)."
+            else:
+                self.__title = "Error"
+                self.__text = f"Error: {response.status_code} - {response.reason}"
 
     def __init__(self, website_url: str):
         """
