@@ -202,14 +202,11 @@ class Website:
             self.__title = extractor.extracted_title
             self.__text = extractor.extracted_text
         else:
-            self.__title = "Error"
-        if response.ok:
-            extractor: Extractor = Extractor(response.text)
-            self.__title = extractor.extracted_title
-            self.__text = extractor.extracted_text
-        else:
             if response.status_code == 404:
                 self.__title = "Not Found"
+            else:
+                self.__title = "Error"
+                self.__text = f"Error: {response.status_code} - {response.reason}"
 
     def __init__(self, website_url: str, allowed_domains: list[str] | str | None = None) -> None:
         """
@@ -220,11 +217,11 @@ class Website:
             allowed_domains (list[str] | str, optional): A list of allowed domain suffixes.
                 If a string is provided, it should be a comma-separated list of domain suffixes (e.g., ".com,.org,.net").
         """
-        self.website_url = website_url
         if allowed_domains is None:
             self._allowed_domains = self.__DEFAULT_ALLOWED_DOMAINS.copy()
         else:
             self._allowed_domains = allowed_domains
+        self.website_url = website_url
 
     def __str__(self) -> str:
         """
