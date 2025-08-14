@@ -3,6 +3,40 @@ from urllib.parse import ParseResult, urlparse
 from bs4 import BeautifulSoup
 from requests import get, RequestException
 
+class Extractor:
+    __soup: BeautifulSoup
+
+    __extracted_title: str = ""
+    @property
+    def extracted_title(self) -> str:
+        if not self.__extracted_title:
+            self.__extracted_title = self.get_title()
+        return self.__extracted_title
+
+    __extracted_text: str = ""
+    @property
+    def extracted_text(self) -> str:
+        if not self.__extracted_text:
+            self.__extracted_text = self.get_text()
+        return self.__extracted_text
+
+    @property
+    def _soup(self) -> BeautifulSoup:
+        return self.__soup
+    
+    def __init__(self, response_text_content: str) -> None:
+        self.__soup = BeautifulSoup(response_text_content, "html.parser")
+
+    def get_title(self) -> str:
+        return self._soup.title.get_text() if self._soup.title is not None and hasattr(self._soup.title, "get_text") else "No title"
+
+    def get_text(self) -> str:
+        for irrelevant in self._soup.find_all(["script", "style", "img", "figure", "video", "audio", "button", "svg", "canvas"]):
+            irrelevant.decompose()
+        raw_text: str = self._soup.get_text(separator="\n")
+        cleaned_text: str = " ".join(raw_text.split())
+        return cleaned_text if cleaned_text else "No content"
+
 class Website:
     """
     A class to represent a website.
@@ -78,15 +112,23 @@ class Website:
         if response.ok:
             soup = BeautifulSoup(response.text, "html.parser")
             self.__title = soup.title.get_text() if soup.title else "No title"
-            for irrelevant in soup.find_all(["script", "style", "img", "figure", "video", "audio", "button"]):
-                irrelevant.decompose()
             if soup.body is None:
                 self.__text = "No content"
             else:
-                self.__text = soup.body.get_text(separator="\n")
+                self.__text = self.__extract_text(soup)
         else:
             self.__title = "Error"
             self.__text = f"Error: {response.status_code} - {response.reason}"
+
+    def __extract_text(self, soup: BeautifulSoup) -> str:
+        """
+        Extract visible text from the HTML soup.
+        """
+        for script in soup.find_all(["script", "style", "img", "figure", "video", "audio", "button"]):
+            script.decompose()
+        if soup.body is None:
+            return "No content"
+        return soup.get_text(separator="\n")
 
     def __init__(self, website_url: str):
         self.website_url = website_url
