@@ -66,9 +66,12 @@ class Website:
     A class to represent a website.
     """
 
-    __title: str
-    __website_url: str
-    __text: str
+    __DEFAULT_ALLOWED_DOMAINS: list[str] = [".com", ".org", ".net"]
+
+    __title: str = ""
+    __website_url: str = ""
+    __text: str = ""
+    __allowed_domains: list[str] = []
 
     @property
     def title(self) -> str:
@@ -91,6 +94,33 @@ class Website:
         """
         return self.__website_url
 
+    @property
+    def _allowed_domains(self) -> list[str]:
+        """
+        Returns the list of allowed domain suffixes.
+        """
+        return self.__allowed_domains
+
+    @_allowed_domains.setter
+    def _allowed_domains(self, value: list[str] | str) -> None:
+        """
+        Sets the list of allowed domain suffixes.
+        Filters out empty strings and ensures each suffix starts with a dot.
+        """
+        if isinstance(value, str):
+            value = [
+                item.strip() if item.strip().startswith(".") else f".{item.strip()}"
+                for item in value.split(",")
+                if item.strip()
+            ]
+        else:
+            value = [
+                item if item.startswith(".") else f".{item}"
+                for item in value
+                if item
+            ]
+        self.__allowed_domains = value
+
     @website_url.setter
     def website_url(self, value: str) -> None:
         """
@@ -101,7 +131,9 @@ class Website:
         """
         if not value:
             raise ValueError("Website URL must be provided")
+
         parsed_url: ParseResult = urlparse(value)
+
         if not parsed_url.netloc or parsed_url.scheme not in ("http", "https"):
             raise ValueError("Website URL must be a valid URL")
 
@@ -178,25 +210,21 @@ class Website:
         else:
             if response.status_code == 404:
                 self.__title = "Not Found"
-                self.__text = "The requested resource was not found (404)."
-            elif response.status_code == 403:
-                self.__title = "Forbidden"
-                self.__text = "Access to the requested resource is forbidden (403)."
-            elif response.status_code == 500:
-                self.__title = "Server Error"
-                self.__text = "The server encountered an internal error (500)."
-            else:
-                self.__title = "Error"
-                self.__text = f"Error: {response.status_code} - {response.reason}"
 
-    def __init__(self, website_url: str):
+    def __init__(self, website_url: str, allowed_domains: list[str] | str | None = None) -> None:
         """
         Initializes the Website object and fetches its data.
 
         Parameters:
             website_url (str): The URL of the website to fetch.
+            allowed_domains (list[str] | str, optional): A list of allowed domain suffixes.
+                If a string is provided, it should be a comma-separated list of domain suffixes (e.g., ".com,.org,.net").
         """
         self.website_url = website_url
+        if allowed_domains is None:
+            self._allowed_domains = self.__DEFAULT_ALLOWED_DOMAINS.copy()
+        else:
+            self._allowed_domains = allowed_domains
 
     def __str__(self) -> str:
         """
