@@ -49,7 +49,7 @@ class Extractor:
         """
         Extracts the title from the HTML content.
         """
-        return self._soup.title.get_text() if self._soup.title is not None and hasattr(self._soup.title, "get_text") else "No title"
+        return self._soup.title.get_text() if self._soup.title is not None else "No title"
 
     def get_text(self) -> str:
         """
