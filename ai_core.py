@@ -29,8 +29,14 @@ class HistoryManager:
         return self.__system_behavior
 
     def __init__(self, system_behavior: str) -> None:
+        # Initialize all instance-level attributes here
         self.__chat_history: list[dict[str, str]] = []
         self.__system_behavior: str = system_behavior
+
+        if __debug__:
+            # Sanity check: confirm attributes are initialized
+            assert hasattr(self, "_HistoryManager__chat_history")
+            assert hasattr(self, "_HistoryManager__system_behavior")
 
     def add_user_message(self, message: str) -> None:
         """
@@ -143,10 +149,17 @@ class AICore(ABC):
             config (AIBrochureConfig): The configuration object for the AI core.
             system_behavior (str): The behavior of the system.
         """
+        # Initialize all instance-level attributes here
         self.__config: AIBrochureConfig | None = None
         self.config = config
         self.__history_manager: HistoryManager = HistoryManager(system_behavior)
         self.__ai_api: openai.OpenAI | None = None
+
+        if __debug__:
+            # Sanity check: confirm attributes are initialized
+            assert hasattr(self, "_AICore__config")
+            assert hasattr(self, "_AICore__history_manager")
+            assert hasattr(self, "_AICore__ai_api")
 
     @abstractmethod
     def ask(self, question: str) -> str:
