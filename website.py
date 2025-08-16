@@ -134,6 +134,18 @@ class Website:
 
         parsed_url: ParseResult = urlparse(value)
 
+        self._validate(parsed_url)
+
+        self.__website_url = value
+        self.__fetch_website_data()
+
+    def _validate(self, parsed_url: ParseResult) -> None:
+        """
+        Validates the parsed URL.
+
+        Parameters:
+            parsed_url (ParseResult): The parsed URL to validate.
+        """
         if not parsed_url.netloc or parsed_url.scheme not in ("http", "https"):
             raise ValueError("Website URL must be a valid URL")
 
@@ -145,9 +157,6 @@ class Website:
 
         if not self.__is_allowed_domain(parsed_url.hostname):
             raise ValueError("Website URL must be an allowed domain")
-
-        self.__website_url = value
-        self.__fetch_website_data()
 
     def __is_local_address(self, hostname: str) -> bool:
         """
@@ -204,6 +213,7 @@ class Website:
         else:
             if response.status_code == 404:
                 self.__title = "Not Found"
+                self.__text = "The requested page was not found (404)."
             else:
                 self.__title = "Error"
                 self.__text = f"Error: {response.status_code} - {response.reason}"
