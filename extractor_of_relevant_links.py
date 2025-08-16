@@ -35,14 +35,14 @@ class ExtractorOfRelevantLinks(AICore):
     def get_links_user_prompt(self) -> str:
         starter_part: str = (f"Here is a list of links found on the website of {self.website.website_url} - "
                              "please decide which of these links are relevant web links for a brochure about company."
-                             "Respond with full HTTPS URLs. Avoid including Terms of Service, Privacy, email links.\n"
+                             "Respond with full HTTPS URLs. Avoid including Terms of Service, Privacy, email links, social media pages.\n"
                              "Links (some might be relative links):\n")
 
         links_part: str = "\n".join(f"- {link}" for link in self.website.links_on_page) if self.website.links_on_page else "No links found."
 
         return starter_part + links_part
 
-    def extract_relevant_links(self) -> str:
+    def extract_relevant_links(self) -> Any:
         user_prompt = self.get_links_user_prompt()
         response = self.ask(user_prompt)
         return response
@@ -65,5 +65,6 @@ class ExtractorOfRelevantLinks(AICore):
         
 
 if __name__ == "__main__":
-    extractor = ExtractorOfRelevantLinks(AIBrochureConfig(), Website("https://edwarddonner.com"))
-    print(extractor.extract_relevant_links())
+    website: Website = Website("<put a site address here>")
+    extractor = ExtractorOfRelevantLinks(AIBrochureConfig(), website)
+    website.links_on_page = extractor.extract_relevant_links()
