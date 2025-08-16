@@ -1,54 +1,33 @@
 import openai
 from abc import ABC, abstractmethod
 from ai_brochure_config import AIBrochureConfig
+from typing import Any, cast
+from openai.types.responses import ResponseInputItemParam, Response
+
 
 class HistoryManager:
-    """
-    Manages the chat history for the AI core.
-    """
-
     @property
-    def chat_history(self) -> list[dict[str, str]]:
-        """
-        Get the chat history.
-        """
-        if len(self.__chat_history) == 0:
-            self.__chat_history.append({"role": "system", "content": self.system_behavior})
-        elif self.__chat_history[0].get("role") != "system":
-            self.__chat_history.insert(0, {"role": "system", "content": self.system_behavior})
-        else:
-            self.__chat_history[0]["content"] = self.system_behavior
-
+    def chat_history(self) -> list[ResponseInputItemParam]:
         return self.__chat_history
 
     @property
     def system_behavior(self) -> str:
-        """
-        Get the system behavior.
-        """
         return self.__system_behavior
 
     def __init__(self, system_behavior: str) -> None:
-        # Initialize all instance-level attributes here
-        self.__chat_history: list[dict[str, str]] = []
+        self.__chat_history: list[ResponseInputItemParam] = []
         self.__system_behavior: str = system_behavior
 
-        if __debug__:
-            # Sanity check: confirm attributes are initialized
-            assert hasattr(self, "_HistoryManager__chat_history")
-            assert hasattr(self, "_HistoryManager__system_behavior")
-
     def add_user_message(self, message: str) -> None:
-        """
-        Adds a user message to the chat history.
-        """
-        self.__chat_history.append({"role": "user", "content": message})
+        self.__chat_history.append({
+            "role": "user",
+            "content": [{"type": "input_text", "text": message}],
+        })
 
-    def add_assistant_message(self, message: str) -> None:
-        """
-        Adds an assistant message to the chat history.
-        """
-        self.__chat_history.append({"role": "assistant", "content": message})
+    def add_assistant_message(self, output_message: Response) -> None:
+        # Convert the Pydantic output model to the input-item shape
+        item = cast(ResponseInputItemParam, output_message.model_dump(exclude_unset=True))
+        self.__chat_history.append(item)
 
 
 class AICore(ABC):
@@ -56,13 +35,12 @@ class AICore(ABC):
     Abstract base class for AI core functionalities.
     """
     @property
-    def config(self) -> AIBrochureConfig | None:
+    def config(self) -> AIBrochureConfig:
         """
-        Return the stored AIBrochureConfig for this instance, or None if no configuration is set.
+        Return the stored AIBrochureConfig for this instance.
 
         Returns:
-            AIBrochureConfig | None: The current configuration used by this object, or None when
-            the configuration has not been initialized.
+            AIBrochureConfig: The current configuration used by this object.
 
         Notes:
             - This accessor returns the internal configuration reference. Mutating the returned
@@ -90,7 +68,6 @@ class AICore(ABC):
         Notes
         -----
         This method stores the provided configuration on a private attribute
-        (e.g., self.__config). Use None to explicitly reset to default settings.
         """
         if config is None:
             self.__config = AIBrochureConfig()
@@ -150,8 +127,7 @@ class AICore(ABC):
             system_behavior (str): The behavior of the system.
         """
         # Initialize all instance-level attributes here
-        self.__config: AIBrochureConfig | None = None
-        self.config = config
+        self.__config: AIBrochureConfig = config
         self.__history_manager: HistoryManager = HistoryManager(system_behavior)
         self.__ai_api: openai.OpenAI | None = None
 
@@ -162,7 +138,7 @@ class AICore(ABC):
             assert hasattr(self, "_AICore__ai_api")
 
     @abstractmethod
-    def ask(self, question: str) -> str:
+    def ask(self, question: str) -> str | Any:
         """
         Ask a question to the AI model.
 

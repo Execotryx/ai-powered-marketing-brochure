@@ -44,6 +44,16 @@ class AIBrochureConfig:
             self.__openai_api_key = self._get_str("OPENAI_API_KEY")
         return self.__openai_api_key
 
+    @property
+    def model_name(self) -> str:
+        """
+        Get the model name from the environment variables.
+        """
+        if self.__model_name == "":
+            self.__model_name = self._get_str("MODEL_NAME")
+        return self.__model_name
+
     def __init__(self) -> None:
         load_dotenv(dotenv_path=".env")
         self.__openai_api_key: str = ""
+        self.__model_name: str = ""
