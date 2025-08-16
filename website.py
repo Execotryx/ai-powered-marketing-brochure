@@ -201,6 +201,13 @@ class Website:
         """
         try:
             response = get(self.website_url, timeout=10)
+        try:
+            response = get(
+                self.website_url,
+                timeout=10,
+                verify=True,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"}
+            )
         except RequestException as e:
             self.__title = "Error"
             self.__text = str(e)
