@@ -200,8 +200,6 @@ class Website:
         No parameters.
         """
         try:
-            response = get(self.website_url, timeout=10)
-        try:
             response = get(
                 self.website_url,
                 timeout=10,
