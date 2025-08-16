@@ -1,6 +1,6 @@
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from urllib.parse import ParseResult, urlparse
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from requests import get, RequestException
 
 class Extractor:
@@ -29,6 +29,13 @@ class Extractor:
             self.__extracted_text = self.get_text()
         return self.__extracted_text
 
+    __extracted_links_on_page: list[str] | None = None
+    @property
+    def extracted_links_on_page(self) -> list[str]:
+        if self.__extracted_links_on_page is None:
+            self.__extracted_links_on_page = [str(a.get("href")) for a in self._soup.find_all('a', href=True) if isinstance(a, Tag)]
+        return self.__extracted_links_on_page
+
     @property
     def _soup(self) -> BeautifulSoup:
         """
@@ -44,6 +51,7 @@ class Extractor:
             response_text_content (str): The HTML response text to be processed.
         """
         self.__soup = BeautifulSoup(response_text_content, "html.parser")
+        self.__extracted_links_on_page = None
 
     def get_title(self) -> str:
         """
@@ -55,7 +63,7 @@ class Extractor:
         """
         Extracts and cleans the main text content from the HTML, removing irrelevant tags.
         """
-        for irrelevant in self._soup.find_all(["script", "style", "img", "figure", "video", "audio", "button", "svg", "canvas"]):
+        for irrelevant in self._soup.find_all(["script", "style", "img", "figure", "video", "audio", "button", "svg", "canvas", "input"]):
             irrelevant.decompose()
         raw_text: str = self._soup.get_text(separator="\n")
         cleaned_text: str = " ".join(raw_text.split())
@@ -72,6 +80,7 @@ class Website:
     __website_url: str = ""
     __text: str = ""
     __allowed_domains: list[str] = []
+    __links_on_page: list[str] | None = None
 
     @property
     def title(self) -> str:
@@ -93,6 +102,13 @@ class Website:
         Returns the URL of the website.
         """
         return self.__website_url
+
+    @property
+    def links_on_page(self) -> list[str] | None:
+        """
+        Returns the list of links extracted from the website.
+        """
+        return self.__links_on_page
 
     @property
     def _allowed_domains(self) -> list[str]:
@@ -215,6 +231,7 @@ class Website:
             extractor: Extractor = Extractor(response.text)
             self.__title = extractor.extracted_title
             self.__text = extractor.extracted_text
+            self.__links_on_page = extractor.extracted_links_on_page
         else:
             if response.status_code == 404:
                 self.__title = "Not Found"
