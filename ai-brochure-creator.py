@@ -122,6 +122,9 @@ class BrochureCreator(AICore[str]):
                     f"Text:\n{self._truncate_text(page['page'].text, MAX_PAGE_CHARS)}{QUOTE_DELIMITER}\n"
                 )
 
+        for page in relevant_pages:
+            if isinstance(page['page'], Website) and not page['page'].fetch_failed:
+                prompt += f"{page['type']}:{QUOTE_DELIMITER}Title: {page['page'].title}\nText:\n{page['page'].text}{QUOTE_DELIMITER}\n"
         return prompt
 
     def _infer_entity(self, brochure_prompt_part: str) -> tuple[str, str]:
