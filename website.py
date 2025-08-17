@@ -144,13 +144,10 @@ class Website:
             ]
         self.__allowed_domains = value
 
-    @website_url.setter
-    def website_url(self, value: str) -> None:
+    def _set_website_url(self, value: str) -> None:
         """
-        Sets the website URL after validating it and fetches website data.
-
-        Parameters:
-            value (str): The website URL to set.
+        Protected: set the website URL after validating and fetch website data.
+        Use this from inside the class to initialize or change the URL.
         """
         if not value:
             raise ValueError("Website URL must be provided")
@@ -279,7 +276,8 @@ class Website:
             self._allowed_domains = self.__DEFAULT_ALLOWED_DOMAINS.copy()
         else:
             self._allowed_domains = allowed_domains
-        self.website_url = website_url
+        # Use protected setter internally so the public API exposes only the getter.
+        self._set_website_url(website_url)
 
     def __str__(self) -> str:
         """
