@@ -13,9 +13,17 @@ class ExtractorOfRelevantLinks(AICore[RelevantLinksDict]):
 
     @property
     def website(self) -> Website:
+        """Return the root Website whose links are being analyzed."""
         return self.__website
 
     def __init__(self, config: AIBrochureConfig, website: Website) -> None:
+        """
+        Initialize the extractor with configuration and target website.
+
+        Parameters:
+            config: AI and runtime configuration.
+            website: The Website from which links were collected.
+        """
         system_behavior: str = ("You are an expert in creation of online advertisement materials."
                                   "You are going to be provided with a list of links found on a website."
                                   "You are able to decide which of the links would be most relevant to include in a brochure about the company,"
@@ -34,6 +42,12 @@ class ExtractorOfRelevantLinks(AICore[RelevantLinksDict]):
         self.__website: Website = website
 
     def get_links_user_prompt(self) -> str:
+        """
+        Build a user prompt listing discovered links and instructions for relevance filtering.
+
+        Returns:
+            A string to send to the model listing links and guidance.
+        """
         starter_part: str = (f"Here is a list of links found on the website of {self.website.website_url} - "
                              "please decide which of these links are relevant web links for a brochure about company."
                              "Respond with full HTTPS URLs. Avoid including Terms of Service, Privacy, email links.\n"
@@ -44,11 +58,26 @@ class ExtractorOfRelevantLinks(AICore[RelevantLinksDict]):
         return starter_part + links_part
 
     def extract_relevant_links(self) -> RelevantLinksDict:
+        """
+        Request the model to select relevant links for brochure creation.
+
+        Returns:
+            A dictionary with a 'links' array containing objects with 'type' and 'url'.
+        """
         user_prompt = self.get_links_user_prompt()
         response = self.ask(user_prompt)
         return response
 
     def ask(self, question: str) -> RelevantLinksDict:
+        """
+        Send a question to the model and parse the JSON response.
+
+        Parameters:
+            question: The prompt to submit.
+
+        Returns:
+            RelevantLinksDict: Parsed JSON containing selected links.
+        """
         self.history_manager.add_user_message(question)
         
         response: Response = self._ai_api.responses.create(

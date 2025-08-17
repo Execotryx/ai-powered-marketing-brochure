@@ -7,25 +7,52 @@ from openai.types.responses import ResponseInputItemParam, Response, ResponseOut
 TAiResponse = TypeVar('TAiResponse', default=Any)
 
 class HistoryManager:
+    """
+    Manage chat history and system behavior for a conversation with the model.
+    """
     @property
     def chat_history(self) -> list[ResponseInputItemParam]:
+        """
+        Return the accumulated conversation as a list of response input items.
+        """
         return self.__chat_history
 
     @property
     def system_behavior(self) -> str:
+        """
+        Return the system behavior (instructions) used for this conversation.
+        """
         return self.__system_behavior
 
     def __init__(self, system_behavior: str) -> None:
+        """
+        Initialize the history manager.
+
+        Parameters:
+            system_behavior: The system instruction string for the conversation.
+        """
         self.__chat_history: list[ResponseInputItemParam] = []
         self.__system_behavior: str = system_behavior
 
     def add_user_message(self, message: str) -> None:
+        """
+        Append a user message to the chat history.
+
+        Parameters:
+            message: The user text to add.
+        """
         self.__chat_history.append({
             "role": "user",
             "content": [{"type": "input_text", "text": message}],
         })
 
     def add_assistant_message(self, output_message: Response) -> None:
+        """
+        Append the assistant's output to the chat history.
+
+        Parameters:
+            output_message: The model response to convert and store.
+        """
         for out in output_message.output:
             # Convert the Pydantic output model to an input item shape
             self.__chat_history.append(
@@ -146,9 +173,9 @@ class AICore(ABC, Generic[TAiResponse]):
         Ask a question to the AI model.
 
         Parameters:
-            question (str): The question to ask.
+            question: The question to ask.
 
         Returns:
-            str: The AI model's response.
+            TAiResponse: The model's response type defined by the subclass.
         """
         pass

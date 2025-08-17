@@ -32,6 +32,13 @@ class Extractor:
     __extracted_links_on_page: list[str] | None = None
     @property
     def extracted_links_on_page(self) -> list[str]:
+        """
+        Return all href values found on the page.
+
+        Notes:
+            - Only anchor tags with an href are included.
+            - Values are returned as-is (may be relative or absolute).
+        """
         if self.__extracted_links_on_page is None:
             self.__extracted_links_on_page = [str(a.get("href")) for a in self._soup.find_all('a', href=True) if isinstance(a, Tag)]
         return self.__extracted_links_on_page
@@ -164,10 +171,14 @@ class Website:
 
     def _validate(self, parsed_url: ParseResult) -> None:
         """
-        Validates the parsed URL.
+        Validate the parsed URL.
 
         Parameters:
-            parsed_url (ParseResult): The parsed URL to validate.
+            parsed_url: The parsed URL to validate.
+
+        Raises:
+            ValueError: If the URL is missing parts, uses an invalid scheme,
+                        points to a local/private address, or is not in allowed domains.
         """
         if not parsed_url.netloc or parsed_url.scheme not in ("http", "https"):
             raise ValueError("Website URL must be a valid URL")
@@ -218,9 +229,11 @@ class Website:
 
     def __fetch_website_data(self) -> None:
         """
-        Fetches website data and extracts title and text using the Extractor class.
+        Fetch website content and populate title, text, and links.
 
-        No parameters.
+        Side effects:
+            - Sets internal state: __title, __text, __links_on_page, __fetch_failed.
+            - Performs an HTTP GET with a browser-like User-Agent.
         """
         try:
             response = get(
