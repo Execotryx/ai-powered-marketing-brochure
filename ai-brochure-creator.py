@@ -71,7 +71,7 @@ class BrochureCreator(AICore[str]):
 
     def _form_full_prompt(self, inferred_company_name: str, inferred_status: str) -> str:
         full_prompt: str = (f"You are looking at a {inferred_status} called {inferred_company_name}, to whom website {self._website.website_url} belongs.\n"
-                            "Build a short brochure about the {inferred_status}. Use the information from the website that is already stored in the history.\n"
+                            f"Build a short brochure about the {inferred_status}. Use the information from the website that is already stored in the history.\n"
                             "Your response must be in a Markdown format.")
         return full_prompt
 
