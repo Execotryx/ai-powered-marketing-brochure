@@ -1,7 +1,7 @@
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from urllib.parse import ParseResult, urlparse
 from bs4 import BeautifulSoup, Tag
-from requests import get, RequestException
+from requests import get, RequestException, Session
 
 class Extractor:
     """
@@ -32,6 +32,13 @@ class Extractor:
     __extracted_links_on_page: list[str] | None = None
     @property
     def extracted_links_on_page(self) -> list[str]:
+        """
+        Return all href values found on the page.
+
+        Notes:
+            - Only anchor tags with an href are included.
+            - Values are returned as-is (may be relative or absolute).
+        """
         if self.__extracted_links_on_page is None:
             self.__extracted_links_on_page = [str(a.get("href")) for a in self._soup.find_all('a', href=True) if isinstance(a, Tag)]
         return self.__extracted_links_on_page
@@ -63,7 +70,7 @@ class Extractor:
         """
         Extracts and cleans the main text content from the HTML, removing irrelevant tags.
         """
-        for irrelevant in self._soup.find_all(["script", "style", "img", "figure", "video", "audio", "button", "svg", "canvas", "input"]):
+        for irrelevant in self._soup.find_all(["script", "style", "img", "figure", "video", "audio", "button", "svg", "canvas", "input", "form", "meta"]):
             irrelevant.decompose()
         raw_text: str = self._soup.get_text(separator="\n")
         cleaned_text: str = " ".join(raw_text.split())
@@ -137,13 +144,10 @@ class Website:
             ]
         self.__allowed_domains = value
 
-    @website_url.setter
-    def website_url(self, value: str) -> None:
+    def _set_website_url(self, value: str) -> None:
         """
-        Sets the website URL after validating it and fetches website data.
-
-        Parameters:
-            value (str): The website URL to set.
+        Protected: set the website URL after validating and fetch website data.
+        Use this from inside the class to initialize or change the URL.
         """
         if not value:
             raise ValueError("Website URL must be provided")
@@ -155,12 +159,23 @@ class Website:
         self.__website_url = value
         self.__fetch_website_data()
 
+    @property
+    def fetch_failed(self) -> bool:
+        """
+        Returns whether the website data fetch failed.
+        """
+        return self.__fetch_failed
+
     def _validate(self, parsed_url: ParseResult) -> None:
         """
-        Validates the parsed URL.
+        Validate the parsed URL.
 
         Parameters:
-            parsed_url (ParseResult): The parsed URL to validate.
+            parsed_url: The parsed URL to validate.
+
+        Raises:
+            ValueError: If the URL is missing parts, uses an invalid scheme,
+                        points to a local/private address, or is not in allowed domains.
         """
         if not parsed_url.netloc or parsed_url.scheme not in ("http", "https"):
             raise ValueError("Website URL must be a valid URL")
@@ -206,17 +221,20 @@ class Website:
         Returns:
             bool: True if the hostname is an allowed domain, False otherwise.
         """
-        allowed_domains = [".com", ".org", ".net"]
+        allowed_domains = [".com", ".org", ".net", ".io"]
         return any(hostname.endswith(domain) for domain in allowed_domains)
 
     def __fetch_website_data(self) -> None:
         """
-        Fetches website data and extracts title and text using the Extractor class.
+        Fetch website content and populate title, text, and links.
 
-        No parameters.
+        Side effects:
+            - Sets internal state: __title, __text, __links_on_page, __fetch_failed.
+            - Performs an HTTP GET with a browser-like User-Agent.
         """
         try:
-            response = get(
+            get_fn = self.__session.get if self.__session else get
+            response = get_fn(
                 self.website_url,
                 timeout=10,
                 verify=True,
@@ -225,6 +243,7 @@ class Website:
         except RequestException as e:
             self.__title = "Error"
             self.__text = str(e)
+            self.__fetch_failed = True
             return
         
         if response.ok:
@@ -239,8 +258,9 @@ class Website:
             else:
                 self.__title = "Error"
                 self.__text = f"Error: {response.status_code} - {response.reason}"
+            self.__fetch_failed = True
 
-    def __init__(self, website_url: str, allowed_domains: list[str] | str | None = None) -> None:
+    def __init__(self, website_url: str, allowed_domains: list[str] | str | None = None, session: Session | None = None) -> None:
         """
         Initializes the Website object and fetches its data.
 
@@ -248,12 +268,16 @@ class Website:
             website_url (str): The URL of the website to fetch.
             allowed_domains (list[str] | str, optional): A list of allowed domain suffixes.
                 If a string is provided, it should be a comma-separated list of domain suffixes (e.g., ".com,.org,.net").
+            session (requests.Session | None, optional): Reused HTTP session for connection pooling.
         """
+        self.__fetch_failed: bool = False
+        self.__session: Session | None = session
         if allowed_domains is None:
             self._allowed_domains = self.__DEFAULT_ALLOWED_DOMAINS.copy()
         else:
             self._allowed_domains = allowed_domains
-        self.website_url = website_url
+        # Use protected setter internally so the public API exposes only the getter.
+        self._set_website_url(website_url)
 
     def __str__(self) -> str:
         """
