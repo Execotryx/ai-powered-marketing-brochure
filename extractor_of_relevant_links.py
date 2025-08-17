@@ -83,10 +83,7 @@ class ExtractorOfRelevantLinks(AICore[RelevantLinksDict]):
         response: Response = self._ai_api.responses.create(
             model=self.config.model_name,
             instructions=self.history_manager.system_behavior,
-            reasoning=
-            {
-                "effort": "medium"
-            },
+            reasoning={ "effort": "low" },
             input=self.history_manager.chat_history
         )
 

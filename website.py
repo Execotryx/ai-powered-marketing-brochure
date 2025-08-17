@@ -1,7 +1,7 @@
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from urllib.parse import ParseResult, urlparse
 from bs4 import BeautifulSoup, Tag
-from requests import get, RequestException
+from requests import get, RequestException, Session
 
 class Extractor:
     """
@@ -236,7 +236,8 @@ class Website:
             - Performs an HTTP GET with a browser-like User-Agent.
         """
         try:
-            response = get(
+            get_fn = self.__session.get if self.__session else get
+            response = get_fn(
                 self.website_url,
                 timeout=10,
                 verify=True,
@@ -262,7 +263,7 @@ class Website:
                 self.__text = f"Error: {response.status_code} - {response.reason}"
             self.__fetch_failed = True
 
-    def __init__(self, website_url: str, allowed_domains: list[str] | str | None = None) -> None:
+    def __init__(self, website_url: str, allowed_domains: list[str] | str | None = None, session: Session | None = None) -> None:
         """
         Initializes the Website object and fetches its data.
 
@@ -270,12 +271,14 @@ class Website:
             website_url (str): The URL of the website to fetch.
             allowed_domains (list[str] | str, optional): A list of allowed domain suffixes.
                 If a string is provided, it should be a comma-separated list of domain suffixes (e.g., ".com,.org,.net").
+            session (requests.Session | None, optional): Reused HTTP session for connection pooling.
         """
+        self.__fetch_failed: bool = False
+        self.__session: Session | None = session
         if allowed_domains is None:
             self._allowed_domains = self.__DEFAULT_ALLOWED_DOMAINS.copy()
         else:
             self._allowed_domains = allowed_domains
-        self.__fetch_failed: bool = False
         self.website_url = website_url
 
     def __str__(self) -> str:

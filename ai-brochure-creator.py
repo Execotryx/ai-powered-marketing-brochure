@@ -5,6 +5,9 @@ from website import Website
 from openai.types.responses import Response
 from rich.console import Console
 from rich.markdown import Markdown
+from requests import Session
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from json import loads
 
 class BrochureCreator(AICore[str]):
     """
@@ -51,8 +54,7 @@ class BrochureCreator(AICore[str]):
             return "No relevant pages found to create a brochure."
 
         brochure_prompt_part: str = self._form_brochure_prompt(relevant_pages)
-        inferred_company_name: str = self._infer_company_name(brochure_prompt_part)
-        inferred_status: str = self._infer_status(inferred_company_name)
+        inferred_company_name, inferred_status = self._infer_entity(brochure_prompt_part)
 
         full_brochure_prompt: str = self._form_full_prompt(inferred_company_name, inferred_status)
         response: str = self.ask(full_brochure_prompt)
@@ -60,19 +62,38 @@ class BrochureCreator(AICore[str]):
 
     def _get_relevant_pages(self) -> list[dict[str, str | Website]]:
         """
-        Resolve relevant links into Website objects.
-
-        Returns:
-            A list of dicts containing:
-                - 'type': the semantic page type (e.g., 'about page'),
-                - 'page': a Website instance for that URL.
+        Resolve relevant links into Website objects using a shared session and concurrency.
         """
         relevant_pages: list[dict[str, str | Website]] = []
         relevant_links: list[dict[str, str]] = self._extractor.extract_relevant_links()["links"]
-        for relevant_link in relevant_links:
-            page = {"type": str(relevant_link["type"]), "page": Website(relevant_link["url"])}
-            relevant_pages.append(page)
+        # Limit the number of pages to fetch to keep latency and token usage reasonable.
+        MAX_PAGES: int = 6
+        links_subset = relevant_links[:MAX_PAGES]
+
+        def build_page(item: dict[str, str], session: Session) -> dict[str, str | Website] | None:
+            try:
+                url = str(item["url"])
+                page_type = str(item["type"])
+                return {"type": page_type, "page": Website(url, session=session)}
+            except Exception:
+                return None
+
+        with Session() as session, ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(build_page, link, session) for link in links_subset]
+            for fut in as_completed(futures):
+                res = fut.result()
+                if res:
+                    relevant_pages.append(res)
+
         return relevant_pages
+
+    def _truncate_text(self, text: str, limit: int) -> str:
+        """
+        Truncate text to 'limit' characters to reduce tokens and latency.
+        """
+        if len(text) <= limit:
+            return text
+        return text[: max(0, limit - 20)] + "... [truncated]"
 
     def _form_brochure_prompt(self, relevant_pages: list[dict[str, str | Website]]) -> str:
         """
@@ -84,46 +105,47 @@ class BrochureCreator(AICore[str]):
         Returns:
             A prompt string containing quoted sections per page.
         """
-        QUOTE_DELIMETER: str = "\n\"\"\"\n"
-        prompt: str = f"Main page:{QUOTE_DELIMETER}Title: {self._website.title}\nText:\n{self._website.text}{QUOTE_DELIMETER}\n"
+        QUOTE_DELIMITER: str = "\n\"\"\"\n"
+        MAX_MAIN_CHARS = 6000
+        MAX_PAGE_CHARS = 3000
+        prompt: str = (
+            f"Main page:{QUOTE_DELIMITER}"
+            f"Title: {self._website.title}\n"
+            f"Text:\n{self._truncate_text(self._website.text, MAX_MAIN_CHARS)}{QUOTE_DELIMITER}\n"
+        )
 
         for page in relevant_pages:
             if isinstance(page['page'], Website) and not page['page'].fetch_failed:
-                prompt += f"{page['type']}:{QUOTE_DELIMETER}Title: {page['page'].title}\nText:\n{page['page'].text}{QUOTE_DELIMETER}\n"
+                prompt += (
+                    f"{page['type']}:{QUOTE_DELIMITER}"
+                    f"Title: {page['page'].title}\n"
+                    f"Text:\n{self._truncate_text(page['page'].text, MAX_PAGE_CHARS)}{QUOTE_DELIMITER}\n"
+                )
 
         return prompt
 
-    def _infer_company_name(self, brochure_prompt_part: str) -> str:
+    def _infer_entity(self, brochure_prompt_part: str) -> tuple[str, str]:
         """
-        Ask the model to infer the entity name from the collected website excerpts.
-
-        Parameters:
-            brochure_prompt_part: The prompt content containing page excerpts.
-
+        Infer both the entity name and status in a single model call to reduce latency.
         Returns:
-            The inferred entity name as plain text.
+            (name, status) where status is 'company' or 'individual'.
         """
-        inferring_company_name_prompt: str = ("Infer the name of the company or the full name of the owner of this website based on the following information that was obtained from their website:\n"
-                                               f"{brochure_prompt_part}\n"
-                                               "Respond only with the name.")
-        response: str = self.ask(inferring_company_name_prompt)
-        return response
-
-    def _infer_status(self, inferred_name: str) -> str:
-        """
-        Ask the model to infer whether the entity is a 'company' or an 'individual'.
-
-        Parameters:
-            inferred_name: The previously inferred entity name.
-
-        Returns:
-            Either 'company' or 'individual'.
-        """
-        inferring_status_prompt: str = ("Infer the current status of the entity by the provided name based on the information obtained from their website previously. There can be only two statuses: a company or an individual.\n"
-                                         f"Entity: {inferred_name}\n"
-                                         "Respond only with the status of said entity.")
-        response: str = self.ask(inferring_status_prompt)
-        return response
+        prompt = (
+            "From the following website excerpts, infer the entity name and whether it is a company or an individual. "
+            "Respond strictly as JSON with keys 'name' and 'status' (status must be 'company' or 'individual').\n"
+            f"{brochure_prompt_part}"
+        )
+        raw = self.ask(prompt)
+        try:
+            data = loads(raw)
+            name = str(data.get("name", "")).strip() or "Unknown"
+            status = str(data.get("status", "")).strip().lower()
+            if status not in ("company", "individual"):
+                status = "company"
+            return name, status
+        except Exception:
+            # Fallback: use entire output as name, assume company
+            return raw.strip() or "Unknown", "company"
 
     def _form_full_prompt(self, inferred_company_name: str, inferred_status: str) -> str:
         """
@@ -156,9 +178,8 @@ class BrochureCreator(AICore[str]):
             model=self.config.model_name,
             instructions=self.history_manager.system_behavior,
             input=self.history_manager.chat_history,
-            reasoning={
-                "effort": "medium"
-            })
+            reasoning={ "effort": "low" }
+        )
         self.history_manager.add_assistant_message(response)
         return response.output_text    
 
