@@ -1,9 +1,8 @@
 from ai_brochure_config import AIBrochureConfig
 from website import Website
 from ai_core import AICore
-from typing import Any
 from openai.types.responses import Response
-from json import loads, dumps
+from json import loads
 
 RelevantLinksDict = dict[str, list[dict[str, str]]]
 
@@ -25,9 +24,9 @@ class ExtractorOfRelevantLinks(AICore[RelevantLinksDict]):
         system_behavior += """
         {
             "links": [
-                {type: "about page", "url": "https://www.example.com/about"},
-                {type: "company page", "url": "https://www.another_example.net/company"},
-                {type: "careers page", "url": "https://ex.one_more_example.org/careers"}
+                {"type": "about page", "url": "https://www.example.com/about"},
+                {"type": "company page", "url": "https://www.another_example.net/company"},
+                {"type": "careers page", "url": "https://ex.one_more_example.org/careers"}
             ]
         }
         """
@@ -37,7 +36,7 @@ class ExtractorOfRelevantLinks(AICore[RelevantLinksDict]):
     def get_links_user_prompt(self) -> str:
         starter_part: str = (f"Here is a list of links found on the website of {self.website.website_url} - "
                              "please decide which of these links are relevant web links for a brochure about company."
-                             "Respond with full HTTPS URLs. Avoid including Terms of Service, Privacy, email links, social media pages.\n"
+                             "Respond with full HTTPS URLs. Avoid including Terms of Service, Privacy, email links.\n"
                              "Links (some might be relative links):\n")
 
         links_part: str = "\n".join(f"- {link}" for link in self.website.links_on_page) if self.website.links_on_page else "No links found."
@@ -64,9 +63,3 @@ class ExtractorOfRelevantLinks(AICore[RelevantLinksDict]):
 
         self.history_manager.add_assistant_message(response)
         return loads(response.output_text)
-        
-
-if __name__ == "__main__":
-    website: Website = Website("<put a site address here>")
-    extractor = ExtractorOfRelevantLinks(AIBrochureConfig(), website)
-    print(extractor.extract_relevant_links())

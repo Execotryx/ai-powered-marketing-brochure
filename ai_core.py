@@ -2,7 +2,7 @@ import openai
 from abc import ABC, abstractmethod
 from ai_brochure_config import AIBrochureConfig
 from typing import Any, cast, Generic, TypeVar
-from openai.types.responses import ResponseInputItemParam, Response
+from openai.types.responses import ResponseInputItemParam, Response, ResponseOutputMessage
 
 TAiResponse = TypeVar('TAiResponse', default=Any)
 
@@ -26,9 +26,11 @@ class HistoryManager:
         })
 
     def add_assistant_message(self, output_message: Response) -> None:
-        # Convert the Pydantic output model to the input-item shape
-        item = cast(ResponseInputItemParam, output_message.model_dump(exclude_unset=True))
-        self.__chat_history.append(item)
+        for out in output_message.output:
+            # Convert the Pydantic output model to an input item shape
+            self.__chat_history.append(
+                cast(ResponseInputItemParam, out.model_dump(exclude_unset=True))
+            )
 
 
 class AICore(ABC, Generic[TAiResponse]):

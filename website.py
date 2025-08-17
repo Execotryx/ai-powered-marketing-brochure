@@ -63,7 +63,7 @@ class Extractor:
         """
         Extracts and cleans the main text content from the HTML, removing irrelevant tags.
         """
-        for irrelevant in self._soup.find_all(["script", "style", "img", "figure", "video", "audio", "button", "svg", "canvas", "input"]):
+        for irrelevant in self._soup.find_all(["script", "style", "img", "figure", "video", "audio", "button", "svg", "canvas", "input", "form", "meta"]):
             irrelevant.decompose()
         raw_text: str = self._soup.get_text(separator="\n")
         cleaned_text: str = " ".join(raw_text.split())
@@ -155,6 +155,13 @@ class Website:
         self.__website_url = value
         self.__fetch_website_data()
 
+    @property
+    def fetch_failed(self) -> bool:
+        """
+        Returns whether the website data fetch failed.
+        """
+        return self.__fetch_failed
+
     def _validate(self, parsed_url: ParseResult) -> None:
         """
         Validates the parsed URL.
@@ -206,7 +213,7 @@ class Website:
         Returns:
             bool: True if the hostname is an allowed domain, False otherwise.
         """
-        allowed_domains = [".com", ".org", ".net"]
+        allowed_domains = [".com", ".org", ".net", ".io"]
         return any(hostname.endswith(domain) for domain in allowed_domains)
 
     def __fetch_website_data(self) -> None:
@@ -225,6 +232,7 @@ class Website:
         except RequestException as e:
             self.__title = "Error"
             self.__text = str(e)
+            self.__fetch_failed = True
             return
         
         if response.ok:
@@ -239,6 +247,7 @@ class Website:
             else:
                 self.__title = "Error"
                 self.__text = f"Error: {response.status_code} - {response.reason}"
+            self.__fetch_failed = True
 
     def __init__(self, website_url: str, allowed_domains: list[str] | str | None = None) -> None:
         """
@@ -253,6 +262,7 @@ class Website:
             self._allowed_domains = self.__DEFAULT_ALLOWED_DOMAINS.copy()
         else:
             self._allowed_domains = allowed_domains
+        self.__fetch_failed: bool = False
         self.website_url = website_url
 
     def __str__(self) -> str:
