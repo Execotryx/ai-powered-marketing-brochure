@@ -1,9 +1,10 @@
 import openai
 from abc import ABC, abstractmethod
 from ai_brochure_config import AIBrochureConfig
-from typing import Any, cast
+from typing import Any, cast, Generic, TypeVar
 from openai.types.responses import ResponseInputItemParam, Response
 
+TAiResponse = TypeVar('TAiResponse', default=Any)
 
 class HistoryManager:
     @property
@@ -30,7 +31,7 @@ class HistoryManager:
         self.__chat_history.append(item)
 
 
-class AICore(ABC):
+class AICore(ABC, Generic[TAiResponse]):
     """
     Abstract base class for AI core functionalities.
     """
@@ -138,7 +139,7 @@ class AICore(ABC):
             assert hasattr(self, "_AICore__ai_api")
 
     @abstractmethod
-    def ask(self, question: str) -> str | Any:
+    def ask(self, question: str) -> TAiResponse:
         """
         Ask a question to the AI model.
 

@@ -5,7 +5,9 @@ from typing import Any
 from openai.types.responses import Response
 from json import loads, dumps
 
-class ExtractorOfRelevantLinks(AICore):
+RelevantLinksDict = dict[str, list[dict[str, str]]]
+
+class ExtractorOfRelevantLinks(AICore[RelevantLinksDict]):
     """
     Extractor for relevant links from a website.
     """
@@ -42,12 +44,12 @@ class ExtractorOfRelevantLinks(AICore):
 
         return starter_part + links_part
 
-    def extract_relevant_links(self) -> Any:
+    def extract_relevant_links(self) -> RelevantLinksDict:
         user_prompt = self.get_links_user_prompt()
         response = self.ask(user_prompt)
         return response
 
-    def ask(self, question: str) -> str | Any:
+    def ask(self, question: str) -> RelevantLinksDict:
         self.history_manager.add_user_message(question)
         
         response: Response = self._ai_api.responses.create(
@@ -67,4 +69,4 @@ class ExtractorOfRelevantLinks(AICore):
 if __name__ == "__main__":
     website: Website = Website("<put a site address here>")
     extractor = ExtractorOfRelevantLinks(AIBrochureConfig(), website)
-    website.links_on_page = extractor.extract_relevant_links()
+    print(extractor.extract_relevant_links())
