@@ -126,6 +126,7 @@ class BrochureCreator(AICore[str]):
             if isinstance(page['page'], Website) and not page['page'].fetch_failed:
                 prompt += f"{page['type']}:{QUOTE_DELIMITER}Title: {page['page'].title}\nText:\n{page['page'].text}{QUOTE_DELIMITER}\n"
         # Removed redundant loop that appended untruncated text.
+        # Removed redundant loop that appended untruncated text.
         return prompt
 
     def _infer_entity(self, brochure_prompt_part: str) -> tuple[str, str]:
